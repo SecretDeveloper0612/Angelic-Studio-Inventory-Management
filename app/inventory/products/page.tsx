@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Toaster, toast } from "sonner";
 import AddProductForm from "@/components/inventory/AddProductForm";
 import DeleteConfirmationModal from "@/components/inventory/modals/DeleteConfirmationModal";
+import AssignProductModal from "@/components/inventory/modals/AssignProductModal";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -21,6 +22,7 @@ export default function ProductsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [productToAssign, setProductToAssign] = useState<Product | null>(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -135,12 +137,26 @@ export default function ProductsPage() {
         </AnimatePresence>
 
         {/* CUSTOM DELETE MODAL */}
-        <DeleteConfirmationModal 
-          isOpen={!!productToDelete}
-          onClose={() => setProductToDelete(null)}
-          onConfirm={confirmDelete}
-          productName={productToDelete?.name || ""}
-        />
+        <AnimatePresence mode="wait">
+          {productToDelete && (
+            <DeleteConfirmationModal
+              onClose={() => setProductToDelete(null)}
+              onConfirm={confirmDelete}
+              productName={productToDelete.name}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* ASSIGN TO STAFF MODAL */}
+        <AnimatePresence mode="wait">
+          {productToAssign && (
+            <AssignProductModal 
+              onClose={() => setProductToAssign(null)}
+              product={productToAssign}
+              onSuccess={handleUpdate}
+            />
+          )}
+        </AnimatePresence>
 
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 opacity-50">
@@ -155,6 +171,7 @@ export default function ProductsPage() {
                 onDelete={initiateDelete} 
                 onUpdate={handleUpdate}
                 onEdit={(p) => setEditingProduct(p)}
+                onAssign={(p) => setProductToAssign(p)}
             />
           </motion.div>
         )}

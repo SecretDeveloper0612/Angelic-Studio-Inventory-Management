@@ -1,86 +1,85 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { AlertCircle, X, Trash2 } from "lucide-react";
 
 interface DeleteConfirmationModalProps {
-  isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   productName: string;
 }
 
 const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ 
-  isOpen, 
   onClose, 
   onConfirm, 
   productName 
 }) => {
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md bg-white rounded-[32px] shadow-2xl overflow-hidden border border-slate-100"
-          >
-            {/* Header / Icon */}
-            <div className="bg-red-50 p-8 flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-white rounded-3xl shadow-xl shadow-red-100 flex items-center justify-center mb-6 text-red-500">
-                <AlertCircle size={40} strokeWidth={2.5} />
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-none mb-2">
-                Dangerous Action
-              </h2>
-              <p className="text-red-500/60 text-[10px] font-black uppercase tracking-[0.2em] italic">
-                Permanent Registry Removal
-              </p>
-            </div>
-
-            {/* Content */}
-            <div className="p-8 text-center">
-              <p className="text-slate-500 font-bold leading-relaxed mb-8">
-                Are you absolutely sure you want to delete <span className="text-slate-900 font-black italic">"{productName}"</span>? This action cannot be undone and will erase all associated logs.
-              </p>
-
-              <div className="flex flex-col space-y-3">
-                <button
-                  onClick={onConfirm}
-                  className="w-full py-5 bg-red-600 hover:bg-red-700 text-white font-black uppercase text-xs tracking-[0.2em] rounded-2xl shadow-lg shadow-red-100 transition-all active:scale-[0.98] flex items-center justify-center space-x-3"
-                >
-                  <Trash2 size={16} />
-                  <span>Confirm Deletion</span>
-                </button>
-                <button
-                  onClick={onClose}
-                  className="w-full py-5 bg-slate-50 hover:bg-slate-100 text-slate-400 font-black uppercase text-xs tracking-[0.2em] rounded-2xl transition-all"
-                >
-                  Keep Product
-                </button>
-              </div>
-            </div>
-
-            {/* Close Button */}
-            <button 
-              onClick={onClose}
-              className="absolute top-4 right-4 p-2 text-slate-300 hover:text-slate-500 transition"
-            >
-              <X size={20} />
-            </button>
-          </motion.div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-950/40"
+      />
+      
+      {/* Modal Content */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        transition={{ type: "spring", damping: 30, stiffness: 400 }}
+        className="relative w-full max-w-md bg-white rounded-[40px] shadow-[0_32px_120px_-20px_rgba(0,0,0,0.3)] overflow-hidden border border-slate-100 will-change-transform"
+      >
+        {/* Header / Icon */}
+        <div className="bg-red-50 p-10 flex flex-col items-center text-center">
+          <div className="w-24 h-24 bg-white rounded-[32px] shadow-2xl shadow-red-100/50 flex items-center justify-center mb-6 text-red-500">
+            <AlertCircle size={48} strokeWidth={2.5} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-none mb-3">
+            Dangerous Action
+          </h2>
+          <p className="text-red-600/60 text-[10px] font-black uppercase tracking-[0.3em] italic">
+            Permanent Registry Removal
+          </p>
         </div>
-      )}
-    </AnimatePresence>
+
+        {/* Content */}
+        <div className="p-10 text-center">
+          <p className="text-slate-500 font-bold leading-relaxed mb-10 text-lg">
+            Are you absolutely sure you want to delete <span className="text-slate-900 font-black italic">"{productName}"</span>?
+          </p>
+
+          <div className="flex flex-col space-y-4">
+            <button
+              onClick={onConfirm}
+              className="w-full py-6 bg-red-600 hover:bg-red-700 text-white font-black uppercase text-[11px] tracking-[0.3em] rounded-[24px] shadow-2xl shadow-red-200 transition-all active:scale-[0.97] flex items-center justify-center space-x-3 group"
+            >
+              <Trash2 size={18} className="group-hover:rotate-12 transition-transform" />
+              <span>Confirm Deletion</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-6 bg-slate-50 hover:bg-slate-100 text-slate-400 font-black uppercase text-[11px] tracking-[0.3em] rounded-[24px] transition-all active:scale-[0.97]"
+            >
+              Keep Product
+            </button>
+          </div>
+        </div>
+
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 p-4 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition duration-300"
+        >
+          <X size={24} />
+        </button>
+      </motion.div>
+    </div>
   );
 };
 

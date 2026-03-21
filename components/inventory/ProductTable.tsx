@@ -15,7 +15,8 @@ import {
   MinusCircle,
   PlusCircle,
   History,
-  MoreVertical
+  MoreVertical,
+  UserPlus
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "../../lib/utils";
@@ -26,6 +27,7 @@ interface ProductTableProps {
   onDelete?: (id: string) => void;
   onUpdate?: (product: Product) => void;
   onEdit?: (product: Product) => void;
+  onAssign?: (product: Product) => void;
 }
 
 const getStatusStyles = (quantity: number, minStock: number) => {
@@ -46,7 +48,7 @@ const getStatusStyles = (quantity: number, minStock: number) => {
   };
 };
 
-const ProductTable: React.FC<ProductTableProps> = ({ products, onDelete, onUpdate, onEdit }) => {
+const ProductTable: React.FC<ProductTableProps> = ({ products, onDelete, onUpdate, onEdit, onAssign }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -207,6 +209,13 @@ const ProductTable: React.FC<ProductTableProps> = ({ products, onDelete, onUpdat
                   </td>
                   <td className="px-6 py-5 text-right">
                     <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition duration-300">
+                        <button 
+                            onClick={() => onAssign?.(product)} 
+                            title="Assign to Staff"
+                            className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition duration-300 transform active:scale-95"
+                        >
+                            <UserPlus size={16} />
+                        </button>
                         <button onClick={() => onEdit?.(product)} className="p-2 text-slate-400 hover:text-primary hover:bg-primary-light rounded-xl transition duration-300 transform active:scale-95"><Edit2 size={16} /></button>
                         <button onClick={() => onDelete?.(product.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition duration-300 transform active:scale-95"><Trash2 size={16} /></button>
                     </div>
@@ -241,6 +250,7 @@ const ProductTable: React.FC<ProductTableProps> = ({ products, onDelete, onUpdat
                             </div>
                         </div>
                         <div className="flex space-x-1">
+                            <button onClick={() => onAssign?.(product)} className="p-2 text-emerald-500 bg-white rounded-xl border border-slate-100"><UserPlus size={16} /></button>
                             <button onClick={() => onEdit?.(product)} className="p-2 text-slate-400 bg-white rounded-xl border border-slate-100"><Edit2 size={16} /></button>
                             <button onClick={() => onDelete?.(product.id)} className="p-2 text-red-400 bg-white rounded-xl border border-slate-100"><Trash2 size={16} /></button>
                         </div>

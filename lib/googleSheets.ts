@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { Product, UsageEntry } from "../types/product";
 import { Supplier, RecentActivity } from "../types/inventory";
+import { sendLowStockNotification } from "./emailService";
 
 /**
  * Professional Google Sheets Integration
@@ -154,6 +155,11 @@ export async function updateProductInSheet(product: Product): Promise<void> {
             action: diff < 0 ? "usage" : "refill",
             details: `${Math.abs(diff)} ${product.unit} recorded`
         });
+
+        // Trigger Alert if Low/Out
+        if (product.quantity <= product.minStock) {
+            await sendLowStockNotification(product);
+        }
     }
 }
 
@@ -195,10 +201,169 @@ export async function fetchRecentActivities(): Promise<RecentActivity[]> {
   }
 }
 
-export async function updateUsageInSheet(entry: UsageEntry): Promise<void> {
-  // Can reuse updateProductInSheet or log specifically
+export async function updateUsageInSheet(productId: string, quantityUsed: number, staffName: string): Promise<Product> {
+  const sheets = await getSheetsInstance();
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: "Products!A2:I",
+  });
+
+  const rows = response.data.values || [];
+  const rowIndex = rows.findIndex(row => row[0] === productId);
+  if (rowIndex === -1) throw new Error("Product not found");
+
+  const productRow = rows[rowIndex];
+  const oldQty = parseInt(productRow[4]) || 0;
+  const newQty = oldQty - quantityUsed;
+
+  if (newQty < 0) throw new Error("Insufficient stock");
+
+  const updatedProduct: Product = {
+    id: productRow[0],
+    name: productRow[1],
+    category: productRow[2],
+    brand: productRow[3],
+    quantity: newQty,
+    minStock: parseInt(productRow[5]) || 0,
+    unit: productRow[6] as any,
+    supplier: productRow[7] || "",
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const range = `Products!A${rowIndex + 2}:I${rowIndex + 2}`;
+  const values = [[
+    updatedProduct.id,
+    updatedProduct.name,
+    updatedProduct.category,
+    updatedProduct.brand,
+    updatedProduct.quantity,
+    updatedProduct.minStock,
+    updatedProduct.unit,
+    updatedProduct.supplier || "",
+    updatedProduct.lastUpdated,
+  ]];
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID,
+    range,
+    valueInputOption: "RAW",
+    requestBody: { values },
+  });
+
+  await logActivityInSheet({
+    productName: updatedProduct.name,
+    action: "usage",
+    staffName: staffName,
+    details: `${quantityUsed} ${updatedProduct.unit} assigned to ${staffName}`
+  });
+
+  // Trigger alert if low
+  if (updatedProduct.quantity <= updatedProduct.minStock) {
+    await sendLowStockNotification(updatedProduct);
+  }
+
+  // Update Staff sheet with latest assignment
+  try {
+    const staffResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: "Staff!A2:A",
+    });
+    const staffRows = staffResponse.data.values || [];
+    const staffIndex = staffRows.findIndex(row => row[0] === staffName);
+    
+    if (staffIndex !== -1) {
+        const staffRange = `Staff!C${staffIndex + 2}:E${staffIndex + 2}`;
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SHEET_ID,
+            range: staffRange,
+            valueInputOption: "RAW",
+            requestBody: { values: [[new Date().toISOString(), updatedProduct.name, quantityUsed]] },
+        });
+    }
+  } catch (err) {
+    console.error("Failed to update Staff summary:", err);
+  }
+
+  return updatedProduct;
 }
 
+
+export async function fetchStaffFromSheet(): Promise<string[]> {
+  try {
+    const sheets = await getSheetsInstance();
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: "Staff!A2:A", 
+    });
+
+    const rows = response.data.values;
+    
+    // If sheet is empty or doesn't exist, initialize it and try again
+    if (!rows || rows.length === 0) {
+      await initializeStaffSheet();
+      const retryResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: "Staff!A2:A", 
+      });
+      const retryRows = retryResponse.data.values;
+      if (!retryRows || retryRows.length === 0) return ["System Admin"];
+      return retryRows.map((row) => row[0]).filter(Boolean);
+    }
+
+    return rows.map((row) => row[0]).filter(Boolean);
+  } catch (error: any) {
+    // If the error is because the sheet doesn't exist (400), initialize it
+    if (error.status === 400 || error.message?.includes("range")) {
+      try {
+        await initializeStaffSheet();
+        return ["Sarah Johnson", "Michael Chen", "Elena Rodriguez", "David Smith"];
+      } catch (initErr) {
+        console.error("Auto-init Staff Failed:", initErr);
+      }
+    }
+    console.error("Fetch Staff Error:", error);
+    return ["System Admin"];
+  }
+}
+
+export async function initializeStaffSheet(): Promise<void> {
+    const sheets = await getSheetsInstance();
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SHEET_ID });
+    
+    // Check if sheet exists or create it
+    let staffSheet = spreadsheet.data.sheets?.find(s => s.properties?.title === "Staff");
+    
+    if (!staffSheet) {
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SHEET_ID,
+            requestBody: {
+                requests: [{ addSheet: { properties: { title: "Staff" } } }]
+            }
+        });
+    }
+
+    const headers = ["Staff Name", "Role", "Last Active", "Latest Product", "Latest Qty"];
+    const initialStaff = [
+        ["Sarah Johnson", "Specialist", new Date().toISOString(), "None", 0],
+        ["Michael Chen", "Specialist", new Date().toISOString(), "None", 0],
+        ["Elena Rodriguez", "Specialist", new Date().toISOString(), "None", 0],
+        ["David Smith", "Admin", new Date().toISOString(), "None", 0]
+    ];
+
+    await sheets.spreadsheets.values.update({
+        spreadsheetId: SHEET_ID,
+        range: "Staff!A1:E1",
+        valueInputOption: "RAW",
+        requestBody: { values: [headers] },
+    });
+
+    await sheets.spreadsheets.values.append({
+        spreadsheetId: SHEET_ID,
+        range: "Staff!A2",
+        valueInputOption: "RAW",
+        requestBody: { values: initialStaff },
+    });
+}
 
 export async function initializeProductsSheet(): Promise<void> {
     const sheets = await getSheetsInstance();
